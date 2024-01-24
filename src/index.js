@@ -83,10 +83,7 @@ function setup(webContents) {
 
       console.log(credentials); // TODO: Delete log later
       const client = new FcmClient({
-        acg: {
-          id: credentials.acg.id,
-          securityToken: credentials.acg.securityToken,
-        },
+        acg: credentials.acg,
         ece: {
           authSecret,
           privateKey: ecdh.getPrivateKey(),
