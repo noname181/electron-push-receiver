@@ -4,6 +4,8 @@ A module to bring Web Push support to [Electron](https://github.com/electron/ele
 
 This specific fork uses [Aracna FCM](https://github.com/queelag/fcm) to support FCM's new HTTP v1 API
 
+**WARNING: This project is not production-ready yet**
+
 ## Install
 
 ```

@@ -1,3 +1,4 @@
+/* global BigInt */
 const {
   createFcmECDH,
   generateFcmAuthSecret,
@@ -44,35 +45,67 @@ function setup(webContents) {
     }
     started = true;
 
+    const authSecret = generateFcmAuthSecret();
+    const ecdh = createFcmECDH();
+
     try {
       // Register if no credentials or if senderId has changed
       if (!credentials || savedAppID !== appID) {
-        const authSecret = generateFcmAuthSecret();
-        const ecdh = createFcmECDH();
-
-        credentials = await registerToFCM({
+        [credentials] = await Promise.all([registerToFCM({
           appID,
-          ece: { authSecret, publicKey: ecdh.getPublicKey() },
-          firebase: { apiKey, appID, projectID },
+          ece: {
+            authSecret,
+            publicKey: ecdh.getPublicKey(),
+          },
+          firebase: {
+            apiKey,
+            appID,
+            projectID,
+          },
           vapidKey,
-        });
+        })]);
+
+        // Change BigInt variables into String in order to Jsonify
+        const credentialsStringify = credentials;
+        credentialsStringify.acg.id = credentialsStringify.acg.id.toString();
+        credentialsStringify.acg.securityToken = credentialsStringify.acg.securityToken.toString();
 
         // Save credentials for later use
-        config.set('credentials', credentials);
+        config.set('credentials', credentialsStringify);
         // Save appID
         config.set('appID', appID);
         // Notify the renderer process that the FCM token has changed
         webContents.send(TOKEN_UPDATED, credentials.token);
       }
 
-      const client = new FcmClient(credentials);
+      credentials.acg.id = BigInt(credentials.acg.id);
+      credentials.acg.securityToken = BigInt(credentials.acg.securityToken);
+
+      console.log(credentials); // TODO: Delete log later
+      const client = new FcmClient({
+        acg: {
+          id: credentials.acg.id,
+          securityToken: credentials.acg.securityToken,
+        },
+        ece: {
+          authSecret,
+          privateKey: ecdh.getPrivateKey(),
+        },
+      });
+      console.log(client); // TODO: Delete log later
+
       // Will be called on new notification
-      client.on('message-data', (notification) => {
+      client.on('message', (message) => {
+        console.log(message); // TODO: Delete log later
         // Notify the renderer process that a new notification has been received
         // And check if window is not destroyed for darwin Apps
         if (!webContents.isDestroyed()) {
-          webContents.send(NOTIFICATION_RECEIVED, notification);
+          webContents.send(NOTIFICATION_RECEIVED, message);
         }
+      });
+
+      client.on('message-data', (data) => {
+        console.log(data); // TODO: Delete log later
       });
 
       // Listen for GCM/FCM notifications
