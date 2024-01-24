@@ -19,7 +19,7 @@ Click [here](https://www.npmjs.com/package/@cuj1559/electron-push-receiver) to c
 - In `main.js` / in main process :
 
 ```javascript
-const { setup: setupPushReceiver } = require('electron-push-receiver');
+const { setup: setupPushReceiver } = require('@cuj1559/electron-push-receiver');
 
 // Call it before 'did-finish-load' with mainWindow a reference to your window
 setupPushReceiver(mainWindow.webContents);
@@ -35,7 +35,7 @@ import {
   NOTIFICATION_SERVICE_ERROR,
   NOTIFICATION_RECEIVED as ON_NOTIFICATION_RECEIVED,
   TOKEN_UPDATED,
-} from 'electron-push-receiver/src/constants';
+} from '@cuj1559/electron-push-receiver/src/constants';
 
 // Listen for service successfully started
 ipcRenderer.on(NOTIFICATION_SERVICE_STARTED, (_, token) => // do something);
