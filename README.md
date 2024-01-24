@@ -2,9 +2,7 @@
 
 A module to bring Web Push support to [Electron](https://github.com/electron/electron) allowing it to receive notifications from Firebase Cloud Messaging (FCM).
 
-## Why and how ?
-
-See [this blog post](https://medium.com/@MatthieuLemoine/my-journey-to-bring-web-push-support-to-node-and-electron-ce70eea1c0b0).
+This specific fork uses [Aracna FCM](https://github.com/queelag/fcm) to support FCM's new HTTP v1 API
 
 ## Install
 
@@ -46,7 +44,3 @@ ipcRenderer.on(ON_NOTIFICATION_RECEIVED, (_, notification) => // display notific
 // Start service
 ipcRenderer.send(START_NOTIFICATION_SERVICE, senderId);
 ```
-
-## Example
-
-Thanks to [CydeSwype](https://github.com/CydeSwype), you can find an example project [here](https://github.com/CydeSwype/electron-fcm-demo).

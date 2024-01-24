@@ -1,4 +1,10 @@
-const { register, listen } = require('push-receiver');
+const {
+  createFcmECDH,
+  generateFcmAuthSecret,
+  registerToFCM,
+  FcmClient,
+} = require('@aracna/fcm');
+
 const { ipcMain } = require('electron');
 const Config = require('electron-config');
 const {
@@ -26,51 +32,56 @@ let started = false;
 // To be call from the main process
 function setup(webContents) {
   // Will be called by the renderer process
-  ipcMain.on(START_NOTIFICATION_SERVICE, async (_, senderId) => {
+  ipcMain.on(START_NOTIFICATION_SERVICE, async (_, appID, projectID, apiKey, vapidKey) => {
     // Retrieve saved credentials
     let credentials = config.get('credentials');
-    // Retrieve saved senderId
-    const savedSenderId = config.get('senderId');
+    // Retrieve saved appId
+    const savedAppID = config.get('appID');
+
     if (started) {
-      webContents.send(NOTIFICATION_SERVICE_STARTED, (credentials.fcm || {}).token);
+      webContents.send(NOTIFICATION_SERVICE_STARTED, (credentials || {}).token);
       return;
     }
     started = true;
+
     try {
-      // Retrieve saved persistentId : avoid receiving all already received notifications on start
-      const persistentIds = config.get('persistentIds') || [];
       // Register if no credentials or if senderId has changed
-      if (!credentials || savedSenderId !== senderId) {
-        credentials = await register(senderId);
+      if (!credentials || savedAppID !== appID) {
+        const authSecret = generateFcmAuthSecret();
+        const ecdh = createFcmECDH();
+
+        credentials = await registerToFCM({
+          appID,
+          ece: { authSecret, publicKey: ecdh.getPublicKey() },
+          firebase: { apiKey, appID, projectID },
+          vapidKey,
+        });
+
         // Save credentials for later use
         config.set('credentials', credentials);
-        // Save senderId
-        config.set('senderId', senderId);
+        // Save appID
+        config.set('appID', appID);
         // Notify the renderer process that the FCM token has changed
-        webContents.send(TOKEN_UPDATED, credentials.fcm.token);
+        webContents.send(TOKEN_UPDATED, credentials.token);
       }
+
+      const client = new FcmClient(credentials);
+      // Will be called on new notification
+      client.on('message-data', (notification) => {
+        // Notify the renderer process that a new notification has been received
+        // And check if window is not destroyed for darwin Apps
+        if (!webContents.isDestroyed()) {
+          webContents.send(NOTIFICATION_RECEIVED, notification);
+        }
+      });
+
       // Listen for GCM/FCM notifications
-      await listen(Object.assign({}, credentials, { persistentIds }), onNotification(webContents));
-      // Notify the renderer process that we are listening for notifications
-      webContents.send(NOTIFICATION_SERVICE_STARTED, credentials.fcm.token);
+      await client.connect();
+      webContents.send(NOTIFICATION_SERVICE_STARTED, credentials.token);
     } catch (e) {
       console.error('PUSH_RECEIVER:::Error while starting the service', e);
       // Forward error to the renderer process
       webContents.send(NOTIFICATION_SERVICE_ERROR, e.message);
     }
   });
-}
-
-// Will be called on new notification
-function onNotification(webContents) {
-  return ({ notification, persistentId }) => {
-    const persistentIds = config.get('persistentIds') || [];
-    // Update persistentId
-    config.set('persistentIds', [...persistentIds, persistentId]);
-    // Notify the renderer process that a new notification has been received
-    // And check if window is not destroyed for darwin Apps
-    if(!webContents.isDestroyed()){
-      webContents.send(NOTIFICATION_RECEIVED, notification);
-    }
-  };
 }
