@@ -1,5 +1,5 @@
 {
-  "name": "@choiman1559/electron-push-receiver",
+  "name": "@cuj1559/electron-push-receiver",
   "version": "3.0.0",
   "description": "A module to receive FCM notifications in electron using HTTP v1 API",
   "main": "src/index.js",
