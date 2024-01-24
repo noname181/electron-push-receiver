@@ -9,8 +9,7 @@
   "types": "src/electron-push-receiver.d.ts",
   "dependencies": {
     "@aracna/fcm": "^1.0.21",
-    "electron-config": "^1.0.0",
-    "push-receiver": "^2.0.2"
+    "electron-config": "^1.0.0"
   },
   "devDependencies": {
     "eslint": "^5.16.0",
