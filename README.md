@@ -7,8 +7,10 @@ This specific fork uses [Aracna FCM](https://github.com/queelag/fcm) to support 
 ## Install
 
 ```
-npm i -S electron-push-receiver
+npm i -S @cuj1559/electron-push-receiver
 ```
+
+Click [here](https://www.npmjs.com/package/@cuj1559/electron-push-receiver) to check out npm page.
 
 ## Usage
 
@@ -42,5 +44,5 @@ ipcRenderer.on(TOKEN_UPDATED, (_, token) => // Send token);
 // Display notification
 ipcRenderer.on(ON_NOTIFICATION_RECEIVED, (_, notification) => // display notification);
 // Start service
-ipcRenderer.send(START_NOTIFICATION_SERVICE, senderId);
+ipcRenderer.send(START_NOTIFICATION_SERVICE, appID, projectID, apiKey, vapidKey);
 ```
