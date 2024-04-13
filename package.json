@@ -1,6 +1,6 @@
 {
   "name": "@cuj1559/electron-push-receiver",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "A module to receive FCM notifications in electron using HTTP v1 API",
   "main": "src/index.js",
   "repository": "https://github.com/Choiman1559/electron-push-receiver",
@@ -8,7 +8,7 @@
   "license": "MIT",
   "types": "src/electron-push-receiver.d.ts",
   "dependencies": {
-    "@aracna/fcm": "^1.0.21",
+    "@aracna/fcm": "^1.0.24",
     "@aracna/core": "^1.1.81",
     "electron-store": "^8.2.0"
   },

@@ -13,10 +13,10 @@
     node-fetch "^3.3.2"
     rfc4648 "^1.5.3"
 
-"@aracna/fcm@^1.0.21":
-  version "1.0.21"
-  resolved "https://registry.yarnpkg.com/@aracna/fcm/-/fcm-1.0.21.tgz#6b4c90835ed2f17b10002e9d66a90e5708326257"
-  integrity sha512-4n/EhgMeuwEAOgAdRyRPkzRicHAbl5lEZNiXIf6YLZdNUzco60xm/+r8uf8AZP0fM4D5oWSX/+KcgcEd27lZUw==
+"@aracna/fcm@^1.0.24":
+  version "1.0.24"
+  resolved "https://registry.yarnpkg.com/@aracna/fcm/-/fcm-1.0.24.tgz#bbdd15623a5643ea17520fb450cc99fb56da39ee"
+  integrity sha512-DPwruX/YpGcIyjrtfnldV2QGNbX1u+FFfOKA7VOIlCxlqc3l8ricidy77hVVci2Ycd4vp+hKm0jsxqVc8sR25Q==
   dependencies:
     google-auth-library "^9.4.1"
     http_ece "^1.1.0"
