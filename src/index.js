@@ -98,10 +98,6 @@ function setup(webContents) {
         tryRestart(webContents, credentials);
       });
 
-      client.getSocket().on('close', () => {
-        tryRestart(webContents, credentials);
-      });
-
       // Listen for GCM/FCM notifications
       await client.connect();
       webContents.send(NOTIFICATION_SERVICE_STARTED, credentials.token);
