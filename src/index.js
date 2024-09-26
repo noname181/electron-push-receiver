@@ -94,13 +94,20 @@ function setup(webContents) {
         }
       });
 
+      // Listen for GCM/FCM notifications
+      await client.connect();
+      webContents.send(NOTIFICATION_SERVICE_STARTED, credentials.token);
+
+      // Listen for FCM server connection failure
+      // Handling for MCS disconnection
       client.on('close', () => {
         tryRestart(webContents, credentials);
       });
 
-      // Listen for GCM/FCM notifications
-      await client.connect();
-      webContents.send(NOTIFICATION_SERVICE_STARTED, credentials.token);
+      // Handling for TCP/TLS socket closed
+      client.socket.on('close', () => {
+        tryRestart(webContents, credentials);
+      });
     } catch (e) {
       console.error('PUSH_RECEIVER:::Error while starting the service', e);
       // Forward error to the renderer process
