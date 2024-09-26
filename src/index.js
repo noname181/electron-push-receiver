@@ -12,16 +12,20 @@ const Store = require('electron-store');
 const {
   START_NOTIFICATION_SERVICE,
   NOTIFICATION_SERVICE_STARTED,
+  NOTIFICATION_SERVICE_RESTARTED,
   NOTIFICATION_SERVICE_ERROR,
   NOTIFICATION_RECEIVED,
   TOKEN_UPDATED,
 } = require('./constants');
 
 const config = new Store();
+let client = null;
 
+// noinspection JSUnusedGlobalSymbols
 module.exports = {
   START_NOTIFICATION_SERVICE,
   NOTIFICATION_SERVICE_STARTED,
+  NOTIFICATION_SERVICE_RESTARTED,
   NOTIFICATION_SERVICE_ERROR,
   NOTIFICATION_RECEIVED,
   TOKEN_UPDATED,
@@ -73,7 +77,7 @@ function setup(webContents) {
       credentials.acg.id = BigInt(credentials.acg.id);
       credentials.acg.securityToken = BigInt(credentials.acg.securityToken);
 
-      const client = new FcmClient({
+      client = new FcmClient({
         acg: credentials.acg,
         ece: {
           authSecret,
@@ -90,6 +94,14 @@ function setup(webContents) {
         }
       });
 
+      client.on('close', () => {
+        tryRestart(webContents, credentials);
+      });
+
+      client.getSocket().on('close', () => {
+        tryRestart(webContents, credentials);
+      });
+
       // Listen for GCM/FCM notifications
       await client.connect();
       webContents.send(NOTIFICATION_SERVICE_STARTED, credentials.token);
@@ -99,4 +111,14 @@ function setup(webContents) {
       webContents.send(NOTIFICATION_SERVICE_ERROR, e.message);
     }
   });
+}
+
+async function tryRestart(webContents, credentials) {
+  webContents.send(NOTIFICATION_SERVICE_ERROR, 'PUSH_RECEIVER:::Socket closed, Trying to reopen fcm socket');
+  if (!webContents.isDestroyed() && client != null) {
+    await client.connect();
+    webContents.send(NOTIFICATION_SERVICE_RESTARTED, credentials.token);
+  } else {
+    webContents.send(NOTIFICATION_SERVICE_ERROR, 'PUSH_RECEIVER:::Socket reopen failed due to webContent or FcmClClient instance is not initialized');
+  }
 }

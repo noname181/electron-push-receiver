@@ -3,6 +3,8 @@ module.exports = {
   START_NOTIFICATION_SERVICE: 'PUSH_RECEIVER:::START_NOTIFICATION_SERVICE',
   // Event sent to the renderer process once the service is up
   NOTIFICATION_SERVICE_STARTED: 'PUSH_RECEIVER:::NOTIFICATION_SERVICE_STARTED',
+  // Event sent to the renderer process once the service is restarted due to socket close
+  NOTIFICATION_SERVICE_RESTARTED: 'PUSH_RECEIVER:::NOTIFICATION_SERVICE_RESTARTED',
   // Event sent to the renderer process if an error has occured during the starting process
   NOTIFICATION_SERVICE_ERROR: 'PUSH_RECEIVER:::NOTIFICATION_SERVICE_ERROR',
   // Event sent to the renderer processs when a notification has been received
