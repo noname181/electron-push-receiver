@@ -124,7 +124,7 @@ async function initClient(webContents, credentials, authSecret, ecdh) {
   });
 
   // Handling for TCP/TLS socket closed
-  client.socket.on('close', () => {
+  client.getSocket().on('close', () => {
     tryRestart(webContents, authSecret, ecdh);
   });
 }
