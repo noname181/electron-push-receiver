@@ -18,8 +18,14 @@ const {
   TOKEN_UPDATED,
 } = require('./constants');
 
+// Static store object that used for save credential cache to local storage
 const config = new Store();
-let client = null;
+
+// All the credentials that previously specified by using project
+let credentialConfig;
+
+// To be sure that start is called only once
+let started = false;
 
 // noinspection JSUnusedGlobalSymbols
 module.exports = {
@@ -31,9 +37,6 @@ module.exports = {
   TOKEN_UPDATED,
   setup,
 };
-
-// To be sure that start is called only once
-let started = false;
 
 // To be call from the main process
 function setup(webContents) {
@@ -50,78 +53,99 @@ function setup(webContents) {
 
     const authSecret = generateFcmAuthSecret();
     const ecdh = createFcmECDH();
+
     credentials = null;
+    credentialConfig = {
+      appID,
+      ece: {
+        authSecret,
+        publicKey: ecdh.getPublicKey(),
+      },
+      firebase: {
+        apiKey,
+        appID,
+        projectID,
+      },
+      vapidKey,
+    };
 
     try {
-      // Register if no credentials or if senderId has changed
-      [credentials] = await Promise.all([registerToFCM({
-        appID,
-        ece: {
-          authSecret,
-          publicKey: ecdh.getPublicKey(),
-        },
-        firebase: {
-          apiKey,
-          appID,
-          projectID,
-        },
-        vapidKey,
-      })]);
-      const credentialsStringify = credentials;
-      credentialsStringify.acg.id = credentialsStringify.acg.id.toString();
-      credentialsStringify.acg.securityToken = credentialsStringify.acg.securityToken.toString();
-      config.set('credentials', credentialsStringify);
-      config.set('appID', appID);
-      webContents.send(TOKEN_UPDATED, credentials.token);
-
-      credentials.acg.id = BigInt(credentials.acg.id);
-      credentials.acg.securityToken = BigInt(credentials.acg.securityToken);
-
-      client = new FcmClient({
-        acg: credentials.acg,
-        ece: {
-          authSecret,
-          privateKey: ecdh.getPrivateKey(),
-        },
-      });
-
-      // Will be called on new notification
-      client.on('message-data', (data) => {
-        // Notify the renderer process that a new notification has been received
-        // And check if window is not destroyed for darwin Apps
-        if (!webContents.isDestroyed()) {
-          webContents.send(NOTIFICATION_RECEIVED, data);
-        }
-      });
-
-      // Listen for GCM/FCM notifications
-      await client.connect();
+      credentials = await initCredential(webContents);
+      await initClient(webContents, credentials, authSecret, ecdh);
       webContents.send(NOTIFICATION_SERVICE_STARTED, credentials.token);
-
-      // Listen for FCM server connection failure
-      // Handling for MCS disconnection
-      client.on('close', () => {
-        tryRestart(webContents, credentials);
-      });
-
-      // Handling for TCP/TLS socket closed
-      client.socket.on('close', () => {
-        tryRestart(webContents, credentials);
-      });
     } catch (e) {
-      console.error('PUSH_RECEIVER:::Error while starting the service', e);
-      // Forward error to the renderer process
-      webContents.send(NOTIFICATION_SERVICE_ERROR, e.message);
+      catchException(webContents, e);
     }
   });
 }
 
-async function tryRestart(webContents, credentials) {
+async function initCredential(webContents) {
+  // Register if no credentials or if senderId has changed
+  const issuedCredential = await Promise.all([registerToFCM(credentialConfig)]);
+  const registeredCredential = issuedCredential[0];
+  const credentialsStringify = registeredCredential;
+
+  credentialsStringify.acg.id = credentialsStringify.acg.id.toString();
+  credentialsStringify.acg.securityToken = credentialsStringify.acg.securityToken.toString();
+  config.set('credentials', credentialsStringify);
+  config.set('appID', credentialConfig.appID);
+  webContents.send(TOKEN_UPDATED, registeredCredential.token);
+
+  registeredCredential.acg.id = BigInt(registeredCredential.acg.id);
+  registeredCredential.acg.securityToken = BigInt(registeredCredential.acg.securityToken);
+  return registeredCredential;
+}
+
+async function initClient(webContents, credentials, authSecret, ecdh) {
+  const client = new FcmClient({
+    acg: credentials.acg,
+    ece: {
+      authSecret,
+      privateKey: ecdh.getPrivateKey(),
+    },
+  });
+
+  // Will be called on new notification
+  client.on('message-data', (data) => {
+    // Notify the renderer process that a new notification has been received
+    // And check if window is not destroyed for darwin Apps
+    if (!webContents.isDestroyed()) {
+      webContents.send(NOTIFICATION_RECEIVED, data);
+    }
+  });
+
+  // Listen for GCM/FCM notifications
+  await client.connect();
+
+  // Listen for FCM server connection failure
+  // Handling for MCS disconnection
+  client.on('close', () => {
+    tryRestart(webContents, authSecret, ecdh);
+  });
+
+  // Handling for TCP/TLS socket closed
+  client.socket.on('close', () => {
+    tryRestart(webContents, authSecret, ecdh);
+  });
+}
+
+async function tryRestart(webContents, authSecret, ecdh) {
   webContents.send(NOTIFICATION_SERVICE_ERROR, 'PUSH_RECEIVER:::Socket closed, Trying to reopen fcm socket');
-  if (!webContents.isDestroyed() && client != null) {
-    await client.connect();
-    webContents.send(NOTIFICATION_SERVICE_RESTARTED, credentials.token);
+  if (!webContents.isDestroyed()) {
+    try {
+      const renewCredential = initCredential(webContents);
+      await initClient(webContents, renewCredential, authSecret, ecdh);
+      webContents.send(NOTIFICATION_SERVICE_RESTARTED, renewCredential.token);
+    } catch (e) {
+      catchException(webContents, e);
+    }
   } else {
     webContents.send(NOTIFICATION_SERVICE_ERROR, 'PUSH_RECEIVER:::Socket reopen failed due to webContent or FcmClClient instance is not initialized');
   }
+}
+
+function catchException(webContents, e) {
+  console.error('PUSH_RECEIVER:::Error while starting the service', e);
+  // Forward error to the renderer process
+  webContents.send(NOTIFICATION_SERVICE_ERROR, e.message);
 }
