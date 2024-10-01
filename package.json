@@ -1,6 +1,6 @@
 {
   "name": "@cuj1559/electron-push-receiver",
-  "version": "3.1.7",
+  "version": "3.1.8",
   "description": "A module to receive FCM notifications in electron using HTTP v1 API",
   "main": "src/index.js",
   "repository": "https://github.com/Choiman1559/electron-push-receiver",

@@ -23,9 +23,19 @@ const config = new Store();
 
 // All the credentials that previously specified by using project
 let credentialConfig;
+let lastCredential = null;
 
 // To be sure that start is called only once
 let started = false;
+
+// FcmClient instance used for manual socket reconnection
+let lastClient = null;
+
+// Variable to prevent duplicate restarts when
+// multiple socket close events are triggered
+const SOCKET_CLOSED_DELAY_THRESHOLD = 10000;
+let lastClosedTimeInMills = 0;
+let isTryingReconnect = false;
 
 // noinspection JSUnusedGlobalSymbols
 module.exports = {
@@ -72,6 +82,7 @@ function setup(webContents) {
     try {
       credentials = await initCredential(webContents);
       await initClient(webContents, credentials, authSecret, ecdh);
+      lastCredential = credentials;
       webContents.send(NOTIFICATION_SERVICE_STARTED, credentials.token);
     } catch (e) {
       catchException(webContents, e);
@@ -97,6 +108,11 @@ async function initCredential(webContents) {
 }
 
 async function initClient(webContents, credentials, authSecret, ecdh) {
+  // Disconnect last connected socket manually
+  if (started && lastClient != null) {
+    lastClient.disconnect();
+  }
+
   const client = new FcmClient({
     acg: credentials.acg,
     ece: {
@@ -117,30 +133,41 @@ async function initClient(webContents, credentials, authSecret, ecdh) {
   // Listen for GCM/FCM notifications
   await client.connect();
 
-  // Listen for FCM server connection failure
-  // Handling for MCS disconnection
-  client.on('close', () => {
-    tryRestart(webContents, authSecret, ecdh);
-  });
+  function calculateThreshold() {
+    const timeNow = Date.now();
+    const isExceedThreshold = (timeNow - lastClosedTimeInMills > SOCKET_CLOSED_DELAY_THRESHOLD);
+    lastClosedTimeInMills = timeNow;
+    return isExceedThreshold;
+  }
 
+  // Listen for FCM server connection failure
   // Handling for TCP/TLS socket closed
   client.getSocket().on('close', () => {
-    tryRestart(webContents, authSecret, ecdh);
+    if (calculateThreshold() && !isTryingReconnect) {
+      isTryingReconnect = true;
+      tryRestart(webContents, authSecret, ecdh);
+      isTryingReconnect = false;
+    } else {
+      webContents.send(NOTIFICATION_SERVICE_ERROR, 'PUSH_RECEIVER:::Socket closed, But not reconnect since already trying reconnection');
+    }
   });
+
+  // Renew last client instance for manual socket disconnection
+  lastClient = client;
 }
 
 async function tryRestart(webContents, authSecret, ecdh) {
   webContents.send(NOTIFICATION_SERVICE_ERROR, 'PUSH_RECEIVER:::Socket closed, Trying to reopen fcm socket');
-  if (!webContents.isDestroyed()) {
+  if (!webContents.isDestroyed() && lastCredential != null) {
     try {
-      const renewCredential = initCredential(webContents);
-      await initClient(webContents, renewCredential, authSecret, ecdh);
-      webContents.send(NOTIFICATION_SERVICE_RESTARTED, renewCredential.token);
+      // Using previously generated credential for login token consistency
+      await initClient(webContents, lastCredential, authSecret, ecdh);
+      webContents.send(NOTIFICATION_SERVICE_RESTARTED, lastCredential.token);
     } catch (e) {
       catchException(webContents, e);
     }
   } else {
-    webContents.send(NOTIFICATION_SERVICE_ERROR, 'PUSH_RECEIVER:::Socket reopen failed due to webContent or FcmClClient instance is not initialized');
+    webContents.send(NOTIFICATION_SERVICE_ERROR, 'PUSH_RECEIVER:::Socket reopen failed due to webContent or lastCredential instance is not initialized');
   }
 }
 
