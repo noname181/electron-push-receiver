@@ -55,10 +55,10 @@ function setup(webContents) {
     // Retrieve saved credentials
     let credentials = config.get('credentials');
 
-    if (started) {
-      webContents.send(NOTIFICATION_SERVICE_STARTED, (credentials || {}).token);
-      return;
-    }
+    //if (started) {
+    //  webContents.send(NOTIFICATION_SERVICE_STARTED, (credentials || {}).token);
+    //  return;
+    //}
     started = true;
 
     const authSecret = generateFcmAuthSecret();
